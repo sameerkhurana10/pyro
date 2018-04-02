@@ -2,7 +2,6 @@ from __future__ import absolute_import, division, print_function
 
 import pytest
 import torch
-from torch.autograd import Variable
 
 from pyro.distributions.torch import Bernoulli
 
@@ -46,7 +45,7 @@ def test_reshape(sample_dim, extra_event_dims):
     shape = sample_shape + batch_shape + event_shape
 
     # Construct a base dist of desired starting shape.
-    dist0 = Bernoulli(Variable(0.5 * torch.ones(batch_shape)))
+    dist0 = Bernoulli(0.5 * torch.ones(batch_shape))
     assert dist0.event_shape == event_shape
     assert dist0.batch_shape == batch_shape
 
@@ -57,7 +56,13 @@ def test_reshape(sample_dim, extra_event_dims):
     assert dist.mean.shape == shape
     assert dist.variance.shape == shape
     assert dist.log_prob(sample).shape == shape[:sample_dim + batch_dim - extra_event_dims]
-    assert dist.enumerate_support().shape == torch.Size((2,)) + shape
+
+    # Check enumerate support.
+    if dist.event_shape:
+        with pytest.raises(NotImplementedError):
+            dist.enumerate_support()
+    else:
+        assert dist.enumerate_support().shape == torch.Size((2,)) + shape
 
 
 @pytest.mark.parametrize('sample_dim,extra_event_dims',
@@ -69,7 +74,7 @@ def test_reshape_reshape(sample_dim, extra_event_dims):
     shape = sample_shape + batch_shape + event_shape
 
     # Construct a base dist of desired starting shape.
-    dist0 = Bernoulli(Variable(0.5 * torch.ones(event_shape)))
+    dist0 = Bernoulli(0.5 * torch.ones(event_shape))
     dist1 = dist0.reshape(sample_shape=batch_shape, extra_event_dims=2)
     assert dist1.event_shape == event_shape
     assert dist1.batch_shape == batch_shape
@@ -81,7 +86,13 @@ def test_reshape_reshape(sample_dim, extra_event_dims):
     assert dist.mean.shape == shape
     assert dist.variance.shape == shape
     assert dist.log_prob(sample).shape == shape[:sample_dim + batch_dim - extra_event_dims]
-    assert dist.enumerate_support().shape == torch.Size((2,)) + shape
+
+    # Check enumerate support.
+    if dist.event_shape:
+        with pytest.raises(NotImplementedError):
+            dist.enumerate_support()
+    else:
+        assert dist.enumerate_support().shape == torch.Size((2,)) + shape
 
 
 @pytest.mark.parametrize('sample_dim', [0, 1, 2])

@@ -38,7 +38,7 @@ pip install pyro-ppl
 ```
 
 **Python 3.5:**
-```
+```sh
 pip3 install pyro-ppl
 ```
 
@@ -50,22 +50,41 @@ git checkout master  # master is pinned to the latest release
 pip install .
 ```
 
+**Install with extra packages:**
+```sh
+pip install pyro-ppl[extras]  # for running examples/tutorials
+```
+
 ### Installing Pyro dev branch
 
 For recent features you can install Pyro from source.
 
-First install a recent PyTorch, currently PyTorch commit `05269b5`.
-```sh
-git clone git@github.com:pytorch/pytorch
-cd pytorch
-git checkout [commit hash above]
+To install a compatible CPU version of Pytorch on OSX / Linux, you
+could use the PyTorch install helper script.
+
 ```
-Then build PyTorch following instructions in the PyTorch
+bash scripts/install_pytorch.sh
+```
+
+Alternatively, build PyTorch following instructions in the PyTorch
 [README](https://github.com/pytorch/pytorch/blob/master/README.md).
+```sh
+git clone --recursive https://github.com/pytorch/pytorch
+cd pytorch
+git checkout 1807bac  # <---- a well-tested commit
+```
+On Linux:
+```sh
+python setup.py install
+```
+On OSX:
+```sh
+MACOSX_DEPLOYMENT_TARGET=10.9 CC=clang CXX=clang++ python setup.py install
+```
 
 Finally install Pyro
 ```sh
-git clone git@github.com:uber/pyro.git
+git clone https://github.com/uber/pyro
 cd pyro
 pip install .
 ```

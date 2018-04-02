@@ -4,7 +4,6 @@ import contextlib
 import numbers
 import os
 import warnings
-from copy import deepcopy
 from itertools import product
 
 import numpy as np
@@ -13,7 +12,6 @@ import torch
 import torch.cuda
 from numpy.testing import assert_allclose
 from pytest import approx
-from torch.autograd import Variable
 
 torch.set_default_tensor_type(os.environ.get('PYRO_TENSOR_TYPE', 'torch.DoubleTensor'))
 
@@ -27,6 +25,10 @@ Source: https://github.com/pytorch/pytorch/blob/master/test/common.py
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 RESOURCE_DIR = os.path.join(TESTS_DIR, 'resources')
 EXAMPLES_DIR = os.path.join(os.path.dirname(TESTS_DIR), 'examples')
+
+
+def xfail_param(*args, **kwargs):
+    return pytest.param(*args, marks=[pytest.mark.xfail(**kwargs)])
 
 
 def suppress_warnings(fn):
@@ -50,25 +52,6 @@ def get_cpu_type(t):
 def get_gpu_type(t):
     assert t.__module__ == 'torch'
     return getattr(torch.cuda, t.__name__)
-
-
-def to_gpu(obj, type_map={}):
-    if torch.is_tensor(obj):
-        t = type_map.get(type(obj), get_gpu_type(type(obj)))
-        return obj.clone().type(t)
-    elif torch.is_storage(obj):
-        return obj.new().resize_(obj.size()).copy_(obj)
-    elif isinstance(obj, Variable):
-        assert obj.is_leaf
-        t = type_map.get(type(obj.data), get_gpu_type(type(obj.data)))
-        return Variable(obj.data.clone().type(
-            t), requires_grad=obj.requires_grad)
-    elif isinstance(obj, list):
-        return [to_gpu(o, type_map) for o in obj]
-    elif isinstance(obj, tuple):
-        return tuple(to_gpu(o, type_map) for o in obj)
-    else:
-        return deepcopy(obj)
 
 
 @contextlib.contextmanager

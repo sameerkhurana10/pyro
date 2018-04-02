@@ -1,7 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
 import torch
-from torch.autograd import Variable
 from torch.distributions import constraints
 from torch.nn import Parameter
 
@@ -19,7 +18,7 @@ class Constant(Kernel):
         super(Constant, self).__init__(input_dim, active_dims, name)
 
         if variance is None:
-            variance = torch.ones(1)
+            variance = torch.tensor(1.)
         self.variance = Parameter(variance)
         self.set_constraint("variance", constraints.positive)
 
@@ -51,7 +50,7 @@ class WhiteNoise(Kernel):
     def __init__(self, input_dim, variance=None, active_dims=None, name="WhiteNoise"):
         super(WhiteNoise, self).__init__(input_dim, active_dims, name)
         if variance is None:
-            variance = torch.ones(1)
+            variance = torch.tensor(1.)
         self.variance = Parameter(variance)
         self.set_constraint("variance", constraints.positive)
 
@@ -63,4 +62,4 @@ class WhiteNoise(Kernel):
         if Z is None:
             return variance.expand(X.size(0)).diag()
         else:
-            return Variable(X.data.new(X.size(0), Z.size(0)).zero_())
+            return X.data.new(X.size(0), Z.size(0)).zero_()

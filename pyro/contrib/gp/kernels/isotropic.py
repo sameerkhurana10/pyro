@@ -9,7 +9,8 @@ from .kernel import Kernel
 
 def _torch_sqrt(x, eps=1e-18):
     """
-    A convenient function to avoid the NaN gradient issue of ``torch.sqrt`` at 0.
+    A convenient function to avoid the NaN gradient issue of :func:`torch.sqrt`
+    at 0.
     """
     # Ref: https://github.com/pytorch/pytorch/issues/2421
     return (x + eps).sqrt()
@@ -32,12 +33,12 @@ class Isotropy(Kernel):
         super(Isotropy, self).__init__(input_dim, active_dims, name)
 
         if variance is None:
-            variance = torch.ones(1)
+            variance = torch.tensor(1.)
         self.variance = Parameter(variance)
         self.set_constraint("variance", constraints.positive)
 
         if lengthscale is None:
-            lengthscale = torch.ones(1)
+            lengthscale = torch.tensor(1.)
         self.lengthscale = Parameter(lengthscale)
         self.set_constraint("lengthscale", constraints.positive)
 
@@ -116,7 +117,7 @@ class RationalQuadratic(Isotropy):
         super(RationalQuadratic, self).__init__(input_dim, variance, lengthscale, active_dims, name)
 
         if scale_mixture is None:
-            scale_mixture = torch.ones(1)
+            scale_mixture = torch.tensor(1.)
         self.scale_mixture = Parameter(scale_mixture)
         self.set_constraint("scale_mixture", constraints.positive)
 

@@ -4,19 +4,18 @@ from collections import namedtuple
 
 import pytest
 import torch
-from torch.autograd import Variable
 
 from pyro.contrib.gp.kernels import (Bias, Brownian, Cosine, Exponent, Linear, Matern12, Matern32,
                                      Matern52, Periodic, Polynomial, Product, RationalQuadratic,
                                      SquaredExponential, Sum, VerticalScaling, Warping, WhiteNoise)
 from tests.common import assert_equal
 
-T = namedtuple("TestKernelForward", ["kernel", "X", "Z", "K_sum"])
+T = namedtuple("TestGPKernel", ["kernel", "X", "Z", "K_sum"])
 
-variance = torch.Tensor([3])
-lengthscale = torch.Tensor([2, 1, 2])
-X = Variable(torch.Tensor([[1, 0, 1], [2, 1, 3]]))
-Z = Variable(torch.Tensor([[4, 5, 6], [3, 1, 7], [3, 1, 2]]))
+variance = torch.tensor([3.0])
+lengthscale = torch.tensor([2.0, 1.0, 2.0])
+X = torch.tensor([[1.0, 0.0, 1.0], [2.0, 1.0, 3.0]])
+Z = torch.tensor([[4.0, 5.0, 6.0], [3.0, 1.0, 7.0], [3.0, 1.0, 2.0]])
 
 TEST_CASES = [
     T(
@@ -103,18 +102,21 @@ def test_combination():
     # test get_subkernel
     assert k.get_subkernel(k5.name) is k5
 
-    # test if error is catched if active_dims are not separated
-    k6 = Matern12(2, variance, lengthscale[0], active_dims=[0, 1])
-    k7 = Matern32(2, variance, lengthscale[0], active_dims=[1, 2])
-    try:
-        Sum(k6, k7)
-    except ValueError:
-        pass
-    else:
-        raise ValueError("Cannot catch ValueError for kernel combination.")
+
+def test_active_dims_overlap_error():
+    k1 = Matern12(2, variance, lengthscale[0], active_dims=[0, 1])
+    k2 = Matern32(2, variance, lengthscale[0], active_dims=[1, 2])
+    with pytest.raises(ValueError):
+        Sum(k1, k2)
 
 
-def test_deriving():
+def test_active_dims_disjoint_ok():
+    k1 = Matern12(2, variance, lengthscale[0], active_dims=[0, 1])
+    k2 = Matern32(1, variance, lengthscale[0], active_dims=[2])
+    Sum(k1, k2)
+
+
+def test_transforming():
     k = TEST_CASES[6][0]
 
     def vscaling_fn(x):

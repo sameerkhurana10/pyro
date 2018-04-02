@@ -1,7 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
 import torch
-from torch.autograd import Variable
 from torch.distributions import constraints
 from torch.nn import Parameter
 
@@ -27,7 +26,7 @@ class Brownian(Kernel):
         super(Brownian, self).__init__(input_dim, active_dims, name)
 
         if variance is None:
-            variance = torch.ones(1)
+            variance = torch.tensor(1.)
         self.variance = Parameter(variance)
         self.set_constraint("variance", constraints.positive)
 
@@ -47,4 +46,4 @@ class Brownian(Kernel):
         Zt = Z.t()
         return torch.where(X.sign() == Zt.sign(),
                            variance * torch.min(X.abs(), Zt.abs()),
-                           Variable(X.data.new(X.size(0), Z.size(0)).zero_()))
+                           X.data.new(X.size(0), Z.size(0)).zero_())

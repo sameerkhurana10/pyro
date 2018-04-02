@@ -1,20 +1,9 @@
 from __future__ import absolute_import, division, print_function
 
-import math
-
-import torch
 from six.moves.queue import LifoQueue
-from torch.autograd import Variable
 
 from pyro import poutine
-from pyro.distributions.util import sum_rightmost
 from pyro.poutine.trace import Trace
-
-
-def _iter_discrete_filter(name, msg):
-    return ((msg["type"] == "sample") and
-            (not msg["is_observed"]) and
-            (msg["infer"].get("enumerate")))  # either sequential or parallel
 
 
 def _iter_discrete_escape(trace, msg):
@@ -24,38 +13,39 @@ def _iter_discrete_escape(trace, msg):
             (msg["name"] not in trace))
 
 
-def iter_discrete_traces(graph_type, max_iarange_nesting, fn, *args, **kwargs):
+def _iter_discrete_extend(trace, site, **ignored):
+    values = site["fn"].enumerate_support()
+    for i, value in enumerate(values):
+        extended_site = site.copy()
+        extended_site["infer"] = site["infer"].copy()
+        extended_site["infer"]["_enum_total"] = len(values)
+        extended_site["value"] = value
+        extended_trace = trace.copy()
+        extended_trace.add_node(site["name"], **extended_site)
+        yield extended_trace
+
+
+def iter_discrete_traces(graph_type, fn, *args, **kwargs):
     """
     Iterate over all discrete choices of a stochastic function.
 
     When sampling continuous random variables, this behaves like `fn`.
     When sampling discrete random variables, this iterates over all choices.
 
-    This yields `(scale, trace)` pairs, where `scale` is the probability of the
-    discrete choices made in the `trace`.
+    This yields traces scaled by the probability of the discrete choices made
+    in the `trace`.
 
     :param str graph_type: The type of the graph, e.g. "flat" or "dense".
     :param callable fn: A stochastic function.
-    :returns: An iterator over (scale, trace) pairs.
+    :returns: An iterator over traces pairs.
     """
     queue = LifoQueue()
     queue.put(Trace())
-    q_fn = poutine.queue(fn, queue=queue, escape_fn=_iter_discrete_escape)
+    traced_fn = poutine.trace(
+        poutine.queue(fn, queue, escape_fn=_iter_discrete_escape, extend_fn=_iter_discrete_extend),
+        graph_type=graph_type)
     while not queue.empty():
-        full_trace = poutine.trace(q_fn, graph_type=graph_type).get_trace(*args, **kwargs)
-
-        # Scale trace by probability of discrete choices.
-        log_pdf = 0
-        full_trace.compute_batch_log_pdf(site_filter=_iter_discrete_filter)
-        for name, site in full_trace.nodes.items():
-            if _iter_discrete_filter(name, site):
-                log_pdf = log_pdf + sum_rightmost(site["batch_log_pdf"], max_iarange_nesting)
-        if isinstance(log_pdf, Variable):
-            scale = torch.exp(log_pdf.detach())
-        else:
-            scale = math.exp(log_pdf)
-
-        yield scale, full_trace
+        yield traced_fn.get_trace(*args, **kwargs)
 
 
 def _config_enumerate(default):
@@ -63,7 +53,7 @@ def _config_enumerate(default):
     def config_fn(site):
         if site["type"] != "sample" or site["is_observed"]:
             return {}
-        if not getattr(site["fn"], "enumerable", False):
+        if not getattr(site["fn"], "has_enumerate_support", False):
             return {}
         if "enumerate" in site["infer"]:
             return {}  # do not overwrite existing config

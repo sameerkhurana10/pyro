@@ -3,7 +3,6 @@ from __future__ import absolute_import, division, print_function
 import math
 
 import torch
-from torch.autograd import Variable
 from torch.distributions import constraints
 from torch.distributions.utils import lazy_property
 
@@ -18,33 +17,35 @@ class SparseMultivariateNormal(TorchDistribution):
     Implements fast computation for log probability of Multivariate Normal distribution
     when the covariance matrix has the form::
 
-        covariance_matrix = D + W.T @ W.
+        covariance_matrix = W.T @ W + D.
 
     Here D is a diagonal vector and ``W`` is a matrix of size ``M x N``. The
     computation will be beneficial when ``M << N``.
 
-    :param torch.autograd.Variable loc: Mean.
-        Must be in 1 dimensional of size N.
-    :param torch.autograd.Variable D_term: D term of covariance matrix.
-        Must be in 1 dimensional of size N.
-    :param torch.autograd.Variable W_term: W term of covariance matrix.
+    :param torch.Tensor loc: Mean.
+        Must be a 1D or 2D tensor with the last dimension of size N.
+    :param torch.Tensor W_term: W term of covariance matrix.
         Must be in 2 dimensional of size M x N.
+    :param torch.Tensor D_term: D term of covariance matrix.
+        Must be in 1 dimensional of size N.
     :param float trace_term: A optional term to be added into Mahalabonis term
         according to p(y) = N(y|loc, cov).exp(-1/2 * trace_term).
     """
-    params = {"loc": constraints.real, "covariance_matrix_D_term": constraints.positive,
-              "scale_tril": constraints.lower_triangular}
+    arg_constraints = {"loc": constraints.real,
+                       "covariance_matrix_D_term": constraints.positive,
+                       "scale_tril": constraints.lower_triangular}
     support = constraints.real
     has_rsample = True
 
-    def __init__(self, loc, D_term, W_term, trace_term=None):
-        if loc.size() != D_term.size():
+    def __init__(self, loc, W_term, D_term, trace_term=None):
+        if loc.size(-1) != D_term.size(0):
             raise ValueError("Expected loc.size() == D_term.size(), but got {} vs {}".format(
                 loc.size(), D_term.size()))
         if D_term.size(0) != W_term.size(1):
             raise ValueError("The dimension of D_term must match the second dimension of W_term.")
-        if loc.dim() != 1 or D_term.dim() != 1 or W_term.dim() != 2:
-            raise ValueError("Loc, D_term, W_term must be 1D, 1D, 2D tensors respectively.")
+        if D_term.dim() != 1 or W_term.dim() != 2 or loc.dim() > 2:
+            raise ValueError("D_term, W_term must be 1D, 2D tensors respectively and "
+                             "loc must be a 1D or 2D tensor.")
 
         self.loc = loc
         self.covariance_matrix_D_term = D_term
@@ -71,7 +72,7 @@ class SparseMultivariateNormal(TorchDistribution):
         A = self.covariance_matrix_W_term / Dsqrt
         At_A = A.t().matmul(A)
         N = A.size(1)
-        Id = Variable(torch.eye(N, N, out=A.data.new(N, N)))
+        Id = torch.eye(N, N, out=A.data.new(N, N))
         K = Id + At_A
         L = K.potrf(upper=False)
         return Dsqrt.unsqueeze(1) * L
@@ -98,13 +99,16 @@ class SparseMultivariateNormal(TorchDistribution):
         """
         W_Dinv = W / D
         M = W.size(0)
-        Id = torch.eye(M, M, out=Variable(W.data.new(M, M)))
+        Id = torch.eye(M, M, out=torch.tensor(W.data.new(M, M)))
         K = Id + W_Dinv.matmul(W.t())
         L = K.potrf(upper=False)
         if y.dim() == 1:
             W_Dinv_y = W_Dinv.matmul(y)
         elif y.dim() == 2:
             W_Dinv_y = W_Dinv.matmul(y.t())
+        else:
+            raise ValueError("SparseMultivariateNormal distribution does not support "
+                             "computing log_prob for a tensor with more than 2 dimensionals.")
         Linv_W_Dinv_y = matrix_triangular_solve_compat(W_Dinv_y, L, upper=False)
         if y.dim() == 2:
             Linv_W_Dinv_y = Linv_W_Dinv_y.t()

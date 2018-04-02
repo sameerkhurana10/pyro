@@ -11,14 +11,11 @@ PyTorch Distributions
 
 Most distributions in Pyro are thin wrappers around PyTorch distributions.
 For details on the PyTorch distribution interface, see
-:class:`torch.distributions.Distribution`.
+:class:`torch.distributions.distribution.Distribution`.
 For differences between the Pyro and PyTorch interfaces, see
-:class:`pyro.distributions.torch_distribution.TorchDistributionMixin`.
+:class:`~pyro.distributions.torch_distribution.TorchDistributionMixin`.
 
 .. automodule:: pyro.distributions.torch
-    :members:
-    :undoc-members:
-    :special-members: __call__
 
 Primitive Distributions
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -49,9 +46,9 @@ Delta
     :undoc-members:
     :show-inheritance:
 
-MultivariateNormal
-------------------
-.. automodule:: pyro.distributions.multivariate_normal
+HalfCauchy
+----------
+.. automodule:: pyro.distributions.half_cauchy
     :members:
     :undoc-members:
     :show-inheritance:
@@ -65,7 +62,7 @@ OMTMultivariateNormal
 
 SparseMultivariateNormal
 ------------------------
-.. automodule:: pyro.distributions.sparse_multivariate_normal
+.. automodule:: pyro.distributions.sparse_mvn
     :members:
     :undoc-members:
     :show-inheritance:
